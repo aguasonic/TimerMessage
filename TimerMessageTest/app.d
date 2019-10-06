@@ -47,10 +47,10 @@ static private void waitForTicks() {
         if (counter == 4) {
             writeln("Counter equals 4.");
             notDone = false;
-            //endTimer();
         }
     }
 
+    //- Ending this method will send a LinkTerminated to the sender.
     writeln("Waiter is done!.");
 }
 
