@@ -1,5 +1,6 @@
 
 This software is provided as Creative-Commons/Non-Commercial/With-Attribution.
+
 (C)Copyright 2019, Mark Fischer, https://aguasonic.com/
 
 https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
