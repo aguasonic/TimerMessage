@@ -1,0 +1,15 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/timermessage
+timermessage.so
+timermessage.dylib
+timermessage.dll
+timermessage.a
+timermessage.lib
+timermessage-test-*
+*.exe
+*.o
+*.obj
+*.lst
