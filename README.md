@@ -11,7 +11,7 @@ https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
 
 If not already available, install the D language compiler, https://dlang.org/
 
-cd TimerMessageLib
+cd libTimerMessage
 
 dub
 
@@ -26,12 +26,13 @@ mv build/*.a ../lib
 
 #### To build the example application
 
-cd TimerMessageTest
+cd example
 
 make
 
 #### To run the example application
-./TimerMessageTest
+
+./example
 
 
 
