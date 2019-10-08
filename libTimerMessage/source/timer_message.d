@@ -6,9 +6,14 @@
 *
 * module timer_message;
 *
-* void startTimer(const ushort periodInMilliseconds, void function() receiverOfTicks);
+* void startTimer(immutable ushort periodInMilliseconds, void function() receiverOfTicks);
 *
 * Sets a timer of indicated period in milliseconds, which sends TickMessage to indicated receiver.
+*
+* void startTimerMessage(immutable ushort periodInMilliseconds);
+*
+* Sets a timer of indicated period in milliseconds. Expects caller to listen for TickMessage,
+* and call endTimerMessage() when done listening.
 *
 * This provides very basic functionality, as only one timer is needed for intended use.
 *
