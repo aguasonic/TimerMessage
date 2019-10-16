@@ -11,14 +11,6 @@ https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
 */
 module timermessage_app;
 
-//- OS imports.
-import core.sys.linux.timerfd :
-timerfd_create, timerfd_settime;
-import core.sys.posix.signal : timespec;
-import core.sys.posix.time : itimerspec, CLOCK_REALTIME;
-import core.sys.posix.unistd : read;
-import core.thread;
-
 //- System imports.
 import std.concurrency : receive, receiveOnly, spawn, spawnLinked, LinkTerminated, Tid;
 import std.datetime;
