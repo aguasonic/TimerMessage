@@ -23,6 +23,7 @@
 module timer_message;
 
 //- OS imports.
+import core.thread;
 import core.sys.linux.timerfd : timerfd_create, timerfd_settime;
 import core.sys.posix.signal : timespec;
 import core.sys.posix.time : itimerspec, CLOCK_REALTIME;
@@ -41,12 +42,20 @@ private struct TickMessage {
    }
 }
 
+//- ONLY ONE TIMER is supported.
+private static __gshared immutable int timerFD;
+private static __gshared immutable size_t sizeOfUlong = ulong.sizeof;
+
 //- Flag for timer loop.
 //- MUST be shared because state is changed in another thread.
-private static shared bool timerActive;
+private static __gshared bool timerActive;
+
+shared static this() {
+   timerFD = timerfd_create(CLOCK_REALTIME, 0);
+}
 
 //- clear timer spec to disarm timer.
-private void clearTimer(immutable int timerFD) {
+private static void clearTimer(immutable int timerFD) {
    itimerspec timerSettings;
 
    /*- Both zero disarms the timer.
@@ -65,7 +74,7 @@ private void clearTimer(immutable int timerFD) {
 }
 
 //- Populate timer spec as indicated.
-private void armTimer(immutable int timerFD, immutable ushort periodInMilliseconds) {
+private static void armTimer(immutable int timerFD, immutable ushort periodInMilliseconds) {
    immutable uint periodInNanoseconds = periodInMilliseconds * 1_000_000;
    itimerspec timerSettings;
 
@@ -85,9 +94,7 @@ private void armTimer(immutable int timerFD, immutable ushort periodInMillisecon
 }
 
 //- Will start a timer that sends "TickMessages" to thread waiting for such.
-private void setupTimer(immutable ushort periodInMilliseconds, Tid tickWaiter) {
-   immutable int timerFD = timerfd_create(CLOCK_REALTIME, 0);
-   immutable size_t sizeOfUlong = ulong.sizeof;
+private static void setupTimer(immutable ushort periodInMilliseconds, Tid tickWaiter) {
    //- Others populated elsewhere.
    size_t numberOfExpirations;
    uint counter;
@@ -104,8 +111,8 @@ private void setupTimer(immutable ushort periodInMilliseconds, Tid tickWaiter) {
 
       if (returnValue == -1)
          stderr.writeln("Timer descriptor returned -1!");
-
-      send(tickWaiter, TickMessage(counter++));
+      else
+         send(tickWaiter, TickMessage(counter++));
    }
 
    //- Clear the timer { tell OS to remove from active }.
@@ -114,7 +121,7 @@ private void setupTimer(immutable ushort periodInMilliseconds, Tid tickWaiter) {
 
 //- One form, provide a method to call the clock ticks.
 //- public interface -- needs a period, in milliseconds, and a function which is listening for TickMessages.
-void startTimerMessage(immutable ushort periodInMilliseconds, void function() receiverOfTicks) {
+static void startTimerMessage(immutable ushort periodInMilliseconds, void function() receiverOfTicks) {
    //- Start the listener, who listens for TickMessages.
    Tid tickWaiter = spawnLinked(receiverOfTicks);
 
@@ -127,21 +134,32 @@ void startTimerMessage(immutable ushort periodInMilliseconds, void function() re
    receiveOnly!LinkTerminated;
 
    //- Let the sender exit loop. Doing so clears the timer.
-   timerActive = false;
+   synchronized {
+      timerActive = false;
+   }
+
+   //- Actually takes a bit for the timer to be removed.
+   //- Without this, multiple ticks ARE SENT { but somehow only the most recent is received??? }.
+   Thread.sleep(dur!"seconds"(1));
 }
 
 
 //- Another form, provide a Task Id to send ticks to.
-//- Will get a 'LinkTerminated' when the _caller_ is done.
 //- public interface -- just needs a period, in milliseconds.
-void startTimerMessage(immutable ushort periodInMilliseconds) {
+static void startTimerMessage(immutable ushort periodInMilliseconds) {
    //- Start the sender, which sends TickMessages to the receiver on the indicated period.
-   const Tid tickSender = spawnLinked(&setupTimer, periodInMilliseconds, thisTid);
+   spawn(&setupTimer, periodInMilliseconds, thisTid);
 }
 
 //- But requires caller to say when it is finished.
-void endTimerMessage() {
+static void endTimerMessage() {
    //- Let the sender exit loop. Doing so clears the timer.
-   timerActive = false;
+   synchronized {
+      timerActive = false;
+   }
+
+   //- Actually takes a bit for the timer to be removed.
+   //- Without this, multiple ticks ARE SENT { but somehow only the most recent is received??? }.
+   Thread.sleep(dur!"seconds"(1));
 }
 

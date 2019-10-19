@@ -15,6 +15,7 @@ module timermessage_app;
 import std.concurrency : receive, receiveOnly, spawn, spawnLinked, LinkTerminated, Tid;
 import std.datetime;
 import std.stdio;
+import std.container;
 
 //- Provides a messageTimer.
 import timer_message;
@@ -23,9 +24,44 @@ import timer_message;
 static private ulong counter;
 
 //- Waits for ticks from the clock.
+//- using the "self-cleaning" interface.
+static private void selfCleaning() {
+   bool notDone = true;
+
+   writeln("");
+   while (notDone) {
+      receive(
+      (TickMessage message) {
+         //writeln("Received tick: ", message.tickNumber);
+         const string tickTime = Clock.currTime().toString();
+
+         writeln(tickTime);
+
+         counter = message.tickNumber;
+      });
+
+      //- Simulating condition where we are done with the timer.
+      //- For example, encountering End-Of-File in actual usage.
+      if (counter == 4) {
+         writeln("Counter equals 4.");
+         notDone = false;
+      }
+   }
+
+   //- Ending this method will send a LinkTerminated to the sender.
+   writeln("Self-cleaning Waiter is done!.");
+
+   //endTimerMessage();
+
+   //- Let the timer know it can leave.
+   //endTimerMessage();
+}
+
+//- Waits for ticks from the clock.
 static private void waitForTicks() {
    bool notDone = true;
 
+   writeln("");
    while (notDone) {
       receive(
       (TickMessage message) {
@@ -47,37 +83,39 @@ static private void waitForTicks() {
 
    //- Ending this method will send a LinkTerminated to the sender.
    writeln("Waiter is done!.");
+
+   //- Let the timer know it can leave.
+   endTimerMessage();
 }
 
 //- Testing TimerMessage facility.
 void main(const string[] args) {
-   static const string compileTime ="TimerMessageTest, built on " ~ __DATE__ ~ " at " ~ __TIME__;
-   const string begTime = "Started at: " ~ Clock.currTime().toString();
+   static immutable string compileTime ="TimerMessageTest, built on " ~ __DATE__ ~ " at " ~ __TIME__;
+   immutable begTime = "Started at: " ~ Clock.currTime().toString();
    immutable ushort periodInMilliseconds = 900;
    //
    //- spawnLinked if one needs to know when startTimerMessage is done.
-   //- startTimerMessage is done when waitForTicks tells it so.
-   //- Else just spawn.
-   const Tid tickWaiter = spawnLinked(&startTimerMessage, periodInMilliseconds, &waitForTicks);
+   //- startTimerMessage is done when selfCleaning exits.
+   //- Else just spawn and wait, as seen in the next example --
+   //- however, that needs to tell the timer when it is done!
+   const Tid tickSender = spawnLinked(&startTimerMessage, periodInMilliseconds, &selfCleaning);
 
    writeln(compileTime);
    writeln(begTime);
 
    //- Wait for these to finish if process is not actively doing something else.
    receiveOnly!LinkTerminated;
+   writeln("Done with first example.");
 
    //- OR, if simply blocking on this to finish.
    startTimerMessage(periodInMilliseconds, &waitForTicks);
-
-   writeln("Done with second one.");
-
+   writeln("Done with second example.");
+   
    //- OR, create, and wait { same process }.
    startTimerMessage(periodInMilliseconds);
 
    waitForTicks();
-
-   //- Let the timer know it can leave.
-   endTimerMessage();
+   writeln("Done with third example.");
 
    //- Write end time...
    scope (exit) {
